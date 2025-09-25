@@ -37,9 +37,10 @@ jobs:
         run: terraform plan -out=tfplan
         env:
           TF_VAR_ssh_key: ${{ secrets.SSH_KEY }}
-
+      
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: terraform apply -auto-approve tfplan
         env:
           TF_VAR_ssh_key: ${{ secrets.SSH_KEY }}
+
