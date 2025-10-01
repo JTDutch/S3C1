@@ -124,7 +124,7 @@ variable "web_message" {
 // Database
 
 variable "home_ip" {
-  default     = "0.0.0.0/24"
+  default     = "0.0.0.0/0"
   type        = string
   description = "Home IP address to connect to the database"
 }
