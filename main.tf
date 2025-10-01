@@ -16,7 +16,7 @@ provider "aws" {
 # ✅ Key pair
 resource "aws_key_pair" "demo_key" {
   key_name   = "nca-demo-key"
-  public_key = file(var.ssh_key)
+  public_key = var.ssh_key
 }
 
 # Note: No individual EC2 outputs anymore, ALB DNS is used instead
