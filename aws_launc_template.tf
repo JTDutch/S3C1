@@ -10,16 +10,21 @@ resource "aws_launch_template" "web_lt" {
     aws_security_group.web_sg.id
   ]
 
-  user_data = base64encode(<<EOT
+user_data = base64encode(<<EOT
 #!/bin/bash
-# Update and install Apache + PHP
-sudo apt-get update -y
-sudo apt-get install -y apache2 php php-mysql curl unzip wget
+set -e
 
-# Get the API server private IP dynamically from Terraform
+# -----------------------------
+# Update & install base packages
+# -----------------------------
+apt-get update -y
+apt-get install -y apache2 php php-mysql curl unzip wget docker.io docker-compose
+
+# -----------------------------
+# Create index.php that calls the API server
+# -----------------------------
 API_IP="${aws_instance.api_server.private_ip}"
 
-# Create index.php that calls the API and prints JSON
 sudo tee /var/www/html/index.php > /dev/null <<EOF
 <?php
 header('Content-Type: text/html');
@@ -52,37 +57,46 @@ sudo chmod -R 755 /var/www/html
 sudo systemctl enable apache2
 sudo systemctl restart apache2
 
-# -------------------------
-# Install Node Exporter (hardcoded version)
-# -------------------------
-cd /tmp
-wget https://github.com/prometheus/node_exporter/releases/download/v1.8.1/node_exporter-1.8.1.linux-amd64.tar.gz
-tar xvf node_exporter-1.8.1.linux-amd64.tar.gz
-sudo mv node_exporter-1.8.1.linux-amd64/node_exporter /usr/local/bin/
+# -----------------------------
+# Setup Docker Compose for Prometheus + Node Exporter
+# -----------------------------
+mkdir -p /opt/monitoring
+cd /opt/monitoring
 
-# Create node_exporter user
-sudo useradd -rs /bin/false node_exporter
+cat > docker-compose.yml <<'COMPOSE'
+version: '3'
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    restart: always
 
-# Create systemd service
-sudo tee /etc/systemd/system/node_exporter.service > /dev/null <<EOF
-[Unit]
-Description=Node Exporter
-After=network.target
+  node_exporter:
+    image: prom/node-exporter:latest
+    ports:
+      - "9100:9100"
+    restart: always
+COMPOSE
 
-[Service]
-User=node_exporter
-ExecStart=/usr/local/bin/node_exporter --web.listen-address=":9100"
+# Prometheus config pointing to API server metrics
+cat > prometheus.yml <<'PROM'
+global:
+  scrape_interval: 15s
 
-[Install]
-WantedBy=default.target
-EOF
+scrape_configs:
+  - job_name: 'node_exporter'
+    static_configs:
+      - targets: ['${aws_instance.api_server.private_ip}:9100']
+PROM
 
-# Reload systemd and enable service
-sudo systemctl daemon-reexec
-sudo systemctl enable node_exporter
-sudo systemctl start node_exporter
+# Start monitoring stack
+docker-compose up -d
 EOT
-  )
+)
+
 
 
 
