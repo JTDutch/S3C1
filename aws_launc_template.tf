@@ -98,7 +98,7 @@ EOT
   tag_specifications {
     resource_type = "instance"
     tags = {
-      Name        = "webserver-${var.instance_name_suffix}" # <- THIS IS THE FIX
+      Name        = "webserver" # <- THIS IS THE FIX
       Environment = "dev"
     }
   }
