@@ -215,3 +215,4 @@ cd /opt/monitoring
 docker-compose up -d
 EOT
 )
+}
