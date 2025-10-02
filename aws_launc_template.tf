@@ -53,14 +53,12 @@ sudo systemctl enable apache2
 sudo systemctl restart apache2
 
 # -------------------------
-# Install Node Exporter
+# Install Node Exporter (hardcoded version)
 # -------------------------
-NODE_EXPORTER_VERSION="1.8.1"
 cd /tmp
-wget https://github.com/prometheus/node_exporter/releases/download/v\${NODE_EXPORTER_VERSION}/node_exporter-\${NODE_EXPORTER_VERSION}.linux-amd64.tar.gz
-tar xvf node_exporter-\${NODE_EXPORTER_VERSION}.linux-amd64.tar.gz
-sudo mv node_exporter-\${NODE_EXPORTER_VERSION}.linux-amd64/node_exporter /usr/local/bin/
-
+wget https://github.com/prometheus/node_exporter/releases/download/v1.8.1/node_exporter-1.8.1.linux-amd64.tar.gz
+tar xvf node_exporter-1.8.1.linux-amd64.tar.gz
+sudo mv node_exporter-1.8.1.linux-amd64/node_exporter /usr/local/bin/
 
 # Create node_exporter user
 sudo useradd -rs /bin/false node_exporter
@@ -85,6 +83,7 @@ sudo systemctl enable node_exporter
 sudo systemctl start node_exporter
 EOT
   )
+
 
 
   tag_specifications {
