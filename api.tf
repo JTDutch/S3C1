@@ -1,22 +1,6 @@
-data "aws_ami" "ubuntu" {
-  most_recent = true
-  owners      = ["099720109477"] # Canonical (Ubuntu)
-
-  filter {
-    name   = "name"
-    values = ["ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-*"]
-  }
-
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
-  }
-}
-
-
 # ✅ API Server EC2
 resource "aws_instance" "api_server" {
-  ami                         = data.aws_ami.ubuntu.id
+  ami                         = data.aws_ami.ubuntu.id  # references main.tf
   instance_type               = var.instance_type
   key_name                    = aws_key_pair.demo_key.key_name
   subnet_id                   = aws_subnet.demo_subnet.id
@@ -27,11 +11,15 @@ resource "aws_instance" "api_server" {
 #!/bin/bash
 set -e
 
-# Update & install Apache, PHP, Docker
+# -----------------------------
+# Update & install base packages
+# -----------------------------
 apt-get update -y
 apt-get install -y apache2 php php-mysql curl unzip docker.io docker-compose
 
-# ✅ Create API PHP file
+# -----------------------------
+# Create API PHP file
+# -----------------------------
 cat <<'EOF' > /var/www/html/api.php
 <?php
 header('Content-Type: application/json');
@@ -61,17 +49,20 @@ $conn->close();
 ?>
 EOF
 
-# ✅ Enable & start Apache
+# -----------------------------
+# Enable services
+# -----------------------------
 systemctl enable apache2
 systemctl start apache2
-
-# ✅ Enable Docker
 systemctl enable docker
 systemctl start docker
 
-# ✅ Setup Prometheus + Grafana stack
+# -----------------------------
+# Prometheus + Grafana setup
+# -----------------------------
 mkdir -p /opt/monitoring/grafana/provisioning/{datasources,dashboards}
 
+# Docker Compose
 cat > /opt/monitoring/docker-compose.yml <<'COMPOSE'
 version: '3'
 services:
@@ -106,7 +97,7 @@ volumes:
   grafana-storage:
 COMPOSE
 
-# ✅ Prometheus config
+# Prometheus config
 cat > /opt/monitoring/prometheus.yml <<'PROM'
 global:
   scrape_interval: 15s
@@ -117,7 +108,7 @@ scrape_configs:
       - targets: ['localhost:9100']
 PROM
 
-# ✅ Grafana datasource provisioning
+# Grafana datasource
 cat > /opt/monitoring/grafana/provisioning/datasources/datasource.yml <<'DATASOURCE'
 apiVersion: 1
 
@@ -129,7 +120,7 @@ datasources:
     isDefault: true
 DATASOURCE
 
-# ✅ Grafana dashboard provisioning
+# Grafana dashboard provider
 cat > /opt/monitoring/grafana/provisioning/dashboards/dashboard.yml <<'DASH'
 apiVersion: 1
 
@@ -144,7 +135,7 @@ providers:
       path: /etc/grafana/provisioning/dashboards
 DASH
 
-# ✅ Example Node Exporter dashboard (minimal JSON)
+# Example Node Exporter dashboard
 cat > /opt/monitoring/grafana/provisioning/dashboards/node_exporter.json <<'DASHJSON'
 {
   "id": null,
@@ -178,7 +169,7 @@ cat > /opt/monitoring/grafana/provisioning/dashboards/node_exporter.json <<'DASH
 }
 DASHJSON
 
-# ✅ Start monitoring stack
+# Start monitoring stack
 cd /opt/monitoring
 docker-compose up -d
 EOT

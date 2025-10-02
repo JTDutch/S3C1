@@ -1,24 +1,7 @@
-# ✅ Find the latest Ubuntu AMI
-data "aws_ami" "ubuntu" {
-  most_recent = true
-
-  filter {
-    name   = "name"
-    values = [var.EC2_image]
-  }
-
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
-  }
-
-  owners = ["099720109477"] # Canonical (official Ubuntu AMIs)
-}
-
 # ✅ Launch template (recipe for EC2 instances)
 resource "aws_launch_template" "web_lt" {
   name_prefix   = "webserver-lt-"
-  image_id      = data.aws_ami.ubuntu.id
+  image_id      = data.aws_ami.ubuntu.id  # reference main.tf
   instance_type = var.instance_type
   key_name      = aws_key_pair.demo_key.key_name
 
@@ -26,7 +9,8 @@ resource "aws_launch_template" "web_lt" {
     aws_security_group.port_22.id,
     aws_security_group.web_sg.id
   ]
-user_data = base64encode(<<EOT
+
+  user_data = base64encode(<<EOT
 #!/bin/bash
 # Update and install Apache + PHP
 sudo apt-get update -y
@@ -68,8 +52,7 @@ sudo chmod -R 755 /var/www/html
 sudo systemctl enable apache2
 sudo systemctl restart apache2
 EOT
-)
-
+  )
 
   tag_specifications {
     resource_type = "instance"
