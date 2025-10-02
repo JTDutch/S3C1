@@ -103,7 +103,8 @@ EOT
   tag_specifications {
     resource_type = "instance"
     tags = {
-      Name = var.instance_name
+      Name = "webserver-${count.index + 1}"
+      Environment = "dev"
     }
   }
 }

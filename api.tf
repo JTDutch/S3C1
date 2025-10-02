@@ -45,7 +45,7 @@ resource "aws_instance" "api_server" {
   associate_public_ip_address = true
   iam_instance_profile        = aws_iam_instance_profile.prometheus_profile.name
 
-  user_data = base64encode(<<EOT
+user_data = base64encode(<<EOT
 #!/bin/bash
 set -e
 
@@ -58,32 +58,32 @@ apt-get install -y apache2 php php-mysql curl unzip docker.io docker-compose
 # -----------------------------
 # Create API PHP file
 # -----------------------------
-cat <<'EOF' > /var/www/html/api.php
+cat <<EOF > /var/www/html/api.php
 <?php
 header('Content-Type: application/json');
 
-$servername = "${aws_db_instance.demo_db.endpoint}";
-$port       = "${aws_db_instance.demo_db.port}";
-$username   = "${var.db_user}";
-$password   = "${var.db_password}";
-$dbname     = "${var.db_name}";
+\$servername = "${aws_db_instance.demo_db.endpoint}";
+\$port       = "${aws_db_instance.demo_db.port}";
+\$username   = "${var.db_user}";
+\$password   = "${var.db_password}";
+\$dbname     = "${var.db_name}";
 
-$conn = new mysqli($servername, $username, $password, $dbname, $port);
+\$conn = new mysqli(\$servername, \$username, \$password, \$dbname, \$port);
 
-if ($conn->connect_error) {
-    die(json_encode(["error" => "Connection failed: " . $conn->connect_error]));
+if (\$conn->connect_error) {
+    die(json_encode(["error" => "Connection failed: " . \$conn->connect_error]));
 }
 
-if (isset($_GET['action']) && $_GET['action'] === 'get_all') {
-    $result = $conn->query("SELECT * FROM users");
-    $rows = [];
-    while($row = $result->fetch_assoc()) {
-        $rows[] = $row;
+if (isset(\$_GET['action']) && \$_GET['action'] === 'get_all') {
+    \$result = \$conn->query("SELECT * FROM users");
+    \$rows = [];
+    while(\$row = \$result->fetch_assoc()) {
+        \$rows[] = \$row;
     }
-    echo json_encode($rows);
+    echo json_encode(\$rows);
 }
 
-$conn->close();
+\$conn->close();
 ?>
 EOF
 
@@ -96,7 +96,7 @@ systemctl enable docker
 systemctl start docker
 
 # -----------------------------
-# Prometheus + Grafana setup
+# Monitoring stack setup
 # -----------------------------
 mkdir -p /opt/monitoring/grafana/provisioning/{datasources,dashboards}
 
@@ -135,7 +135,7 @@ volumes:
   grafana-storage:
 COMPOSE
 
-# Prometheus config (EC2 service discovery)
+# Prometheus config with EC2 service discovery
 cat > /opt/monitoring/prometheus.yml <<'PROM'
 global:
   scrape_interval: 15s
@@ -143,7 +143,7 @@ global:
 scrape_configs:
   - job_name: 'node_exporter'
     ec2_sd_configs:
-      - region: eu-west-1
+      - region: eu-central-1
         port: 9100
     relabel_configs:
       - source_labels: [__meta_ec2_tag_Name]
@@ -154,7 +154,6 @@ PROM
 # Grafana datasource
 cat > /opt/monitoring/grafana/provisioning/datasources/datasource.yml <<'DATASOURCE'
 apiVersion: 1
-
 datasources:
   - name: Prometheus
     type: prometheus
@@ -166,7 +165,6 @@ DATASOURCE
 # Grafana dashboard provider
 cat > /opt/monitoring/grafana/provisioning/dashboards/dashboard.yml <<'DASH'
 apiVersion: 1
-
 providers:
   - name: 'default'
     orgId: 1
@@ -193,7 +191,7 @@ cat > /opt/monitoring/grafana/provisioning/dashboards/node_exporter.json <<'DASH
       "title": "CPU Usage",
       "targets": [
         {
-          "expr": "100 - (avg by (instance)(irate(node_cpu_seconds_total{mode=\\"idle\\"}[5m])) * 100)",
+          "expr": "100 - (avg by (instance)(irate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
           "legendFormat": "CPU Usage"
         }
       ]
@@ -216,9 +214,4 @@ DASHJSON
 cd /opt/monitoring
 docker-compose up -d
 EOT
-  )
-
-  tags = {
-    Name = "API-Server"
-  }
-}
+)
