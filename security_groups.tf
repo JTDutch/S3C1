@@ -221,3 +221,12 @@ resource "aws_security_group_rule" "web_node_exporter_from_api" {
   source_security_group_id = aws_security_group.api_sg.id
   security_group_id        = aws_security_group.web_sg.id
 }
+
+resource "aws_security_group_rule" "api_ingress_all_tcp" {
+  type              = "ingress"
+  from_port         = 0
+  to_port           = 65535
+  protocol          = "tcp"
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.api_sg.id
+}
