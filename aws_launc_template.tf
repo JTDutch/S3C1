@@ -1,4 +1,4 @@
-# ✅ Launch template
+# ✅ Launch template (recipe for EC2 instances)
 resource "aws_launch_template" "web_lt" {
   name_prefix   = "webserver-lt-"
   image_id      = data.aws_ami.ubuntu.id
@@ -82,8 +82,13 @@ global:
 
 scrape_configs:
   - job_name: 'node_exporter'
-    static_configs:
-      - targets: ['${aws_instance.api_server.private_ip}:9100']
+    ec2_sd_configs:
+      - region: eu-central-1
+        port: 9100
+    relabel_configs:
+      - source_labels: [__meta_ec2_tag_Name]
+        regex: webserver-.*
+        action: keep
 PROM
 
 docker-compose up -d
@@ -93,10 +98,12 @@ EOT
   tag_specifications {
     resource_type = "instance"
     tags = {
+      Name        = "webserver-${var.instance_name_suffix}" # <- THIS IS THE FIX
       Environment = "dev"
     }
   }
 }
+
 
 # ✅ Auto Scaling Group
 resource "aws_autoscaling_group" "web_asg" {

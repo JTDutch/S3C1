@@ -147,7 +147,7 @@ scrape_configs:
         port: 9100
     relabel_configs:
       - source_labels: [__meta_ec2_tag_Name]
-        regex: webserver-.*
+        regex: webserver-
         action: keep
 PROM
 
