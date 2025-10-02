@@ -1,7 +1,7 @@
-# ✅ Launch template (recipe for EC2 instances)
+# ✅ Launch template
 resource "aws_launch_template" "web_lt" {
   name_prefix   = "webserver-lt-"
-  image_id      = data.aws_ami.ubuntu.id  # reference main.tf
+  image_id      = data.aws_ami.ubuntu.id
   instance_type = var.instance_type
   key_name      = aws_key_pair.demo_key.key_name
 
@@ -10,7 +10,7 @@ resource "aws_launch_template" "web_lt" {
     aws_security_group.web_sg.id
   ]
 
-user_data = base64encode(<<EOT
+  user_data = base64encode(<<EOT
 #!/bin/bash
 set -e
 
@@ -46,14 +46,9 @@ if (\$response === FALSE) {
 ?>
 EOF
 
-# Remove default index.html if exists
 sudo rm -f /var/www/html/index.html
-
-# Set proper ownership and permissions
 sudo chown -R www-data:www-data /var/www/html
 sudo chmod -R 755 /var/www/html
-
-# Enable and start Apache2
 sudo systemctl enable apache2
 sudo systemctl restart apache2
 
@@ -81,7 +76,6 @@ services:
     restart: always
 COMPOSE
 
-# Prometheus config pointing to API server metrics
 cat > prometheus.yml <<'PROM'
 global:
   scrape_interval: 15s
@@ -92,18 +86,13 @@ scrape_configs:
       - targets: ['${aws_instance.api_server.private_ip}:9100']
 PROM
 
-# Start monitoring stack
 docker-compose up -d
 EOT
-)
-
-
-
+  )
 
   tag_specifications {
     resource_type = "instance"
     tags = {
-      Name = "webserver-${count.index + 1}"
       Environment = "dev"
     }
   }
@@ -135,12 +124,12 @@ resource "aws_autoscaling_group" "web_asg" {
 
   tag {
     key                 = "Name"
-    value               = var.instance_name
+    value               = "webserver"
     propagate_at_launch = true
   }
 }
 
-# ✅ Scaling policy: add 1 instance when CPU > 70%
+# ✅ Scaling policies
 resource "aws_autoscaling_policy" "scale_out" {
   name                   = "scale-out-policy"
   scaling_adjustment     = 1
@@ -149,7 +138,6 @@ resource "aws_autoscaling_policy" "scale_out" {
   autoscaling_group_name = aws_autoscaling_group.web_asg.name
 }
 
-# ✅ Scaling policy: remove 1 instance when CPU < 20%
 resource "aws_autoscaling_policy" "scale_in" {
   name                   = "scale-in-policy"
   scaling_adjustment     = -1
@@ -158,7 +146,7 @@ resource "aws_autoscaling_policy" "scale_in" {
   autoscaling_group_name = aws_autoscaling_group.web_asg.name
 }
 
-# ✅ CloudWatch Alarm: Scale out when CPU > 70%
+# ✅ CloudWatch alarms
 resource "aws_cloudwatch_metric_alarm" "cpu_high" {
   alarm_name          = "webserver-cpu-high"
   comparison_operator = "GreaterThanThreshold"
@@ -177,7 +165,6 @@ resource "aws_cloudwatch_metric_alarm" "cpu_high" {
   treat_missing_data = "notBreaching"
 }
 
-# ✅ CloudWatch Alarm: Scale in when CPU < 20%
 resource "aws_cloudwatch_metric_alarm" "cpu_low" {
   alarm_name          = "webserver-cpu-low"
   comparison_operator = "LessThanThreshold"
