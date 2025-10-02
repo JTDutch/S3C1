@@ -182,3 +182,42 @@ resource "aws_security_group_rule" "db_mysql_from_home" {
   cidr_blocks       = [var.home_ip]
   security_group_id = aws_security_group.db_sg.id
 }
+
+# Grafana (3000)
+resource "aws_security_group_rule" "api_grafana_from_home" {
+  type              = "ingress"
+  from_port         = 3000
+  to_port           = 3000
+  protocol          = "tcp"
+  cidr_blocks       = [var.home_ip]
+  security_group_id = aws_security_group.api_sg.id
+}
+
+# Prometheus (9090)
+resource "aws_security_group_rule" "api_prometheus_from_home" {
+  type              = "ingress"
+  from_port         = 9090
+  to_port           = 9090
+  protocol          = "tcp"
+  cidr_blocks       = [var.home_ip]
+  security_group_id = aws_security_group.api_sg.id
+}
+
+# Node Exporter (9100)
+resource "aws_security_group_rule" "api_node_exporter_from_home" {
+  type              = "ingress"
+  from_port         = 9100
+  to_port           = 9100
+  protocol          = "tcp"
+  cidr_blocks       = [var.home_ip]
+  security_group_id = aws_security_group.api_sg.id
+}
+
+resource "aws_security_group_rule" "web_node_exporter_from_api" {
+  type                     = "ingress"
+  from_port                = 9100
+  to_port                  = 9100
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.api_sg.id
+  security_group_id        = aws_security_group.web_sg.id
+}

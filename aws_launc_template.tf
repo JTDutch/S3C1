@@ -14,7 +14,7 @@ resource "aws_launch_template" "web_lt" {
 #!/bin/bash
 # Update and install Apache + PHP
 sudo apt-get update -y
-sudo apt-get install -y apache2 php php-mysql curl unzip
+sudo apt-get install -y apache2 php php-mysql curl unzip wget
 
 # Get the API server private IP dynamically from Terraform
 API_IP="${aws_instance.api_server.private_ip}"
@@ -51,8 +51,40 @@ sudo chmod -R 755 /var/www/html
 # Enable and start Apache2
 sudo systemctl enable apache2
 sudo systemctl restart apache2
+
+# -------------------------
+# Install Node Exporter
+# -------------------------
+NODE_EXPORTER_VERSION="1.8.1"
+cd /tmp
+wget https://github.com/prometheus/node_exporter/releases/download/v${NODE_EXPORTER_VERSION}/node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64.tar.gz
+tar xvf node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64.tar.gz
+sudo mv node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64/node_exporter /usr/local/bin/
+
+# Create node_exporter user
+sudo useradd -rs /bin/false node_exporter
+
+# Create systemd service
+sudo tee /etc/systemd/system/node_exporter.service > /dev/null <<EOF
+[Unit]
+Description=Node Exporter
+After=network.target
+
+[Service]
+User=node_exporter
+ExecStart=/usr/local/bin/node_exporter --web.listen-address=":9100"
+
+[Install]
+WantedBy=default.target
+EOF
+
+# Reload systemd and enable service
+sudo systemctl daemon-reexec
+sudo systemctl enable node_exporter
+sudo systemctl start node_exporter
 EOT
   )
+
 
   tag_specifications {
     resource_type = "instance"

@@ -1,3 +1,40 @@
+# ✅ IAM Role for Prometheus EC2 Discovery
+resource "aws_iam_role" "prometheus_role" {
+  name = "prometheus-ec2-discovery-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = {
+        Service = "ec2.amazonaws.com"
+      }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "prometheus_ec2_policy" {
+  name = "prometheus-ec2-policy"
+  role = aws_iam_role.prometheus_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action   = ["ec2:DescribeInstances", "ec2:DescribeTags"]
+        Effect   = "Allow"
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_instance_profile" "prometheus_profile" {
+  name = "prometheus-ec2-profile"
+  role = aws_iam_role.prometheus_role.name
+}
+
 # ✅ API Server EC2
 resource "aws_instance" "api_server" {
   ami                         = data.aws_ami.ubuntu.id  # references main.tf
@@ -6,6 +43,7 @@ resource "aws_instance" "api_server" {
   subnet_id                   = aws_subnet.demo_subnet.id
   vpc_security_group_ids      = [aws_security_group.api_sg.id]
   associate_public_ip_address = true
+  iam_instance_profile        = aws_iam_instance_profile.prometheus_profile.name
 
   user_data = base64encode(<<EOT
 #!/bin/bash
@@ -97,15 +135,20 @@ volumes:
   grafana-storage:
 COMPOSE
 
-# Prometheus config
+# Prometheus config (EC2 service discovery)
 cat > /opt/monitoring/prometheus.yml <<'PROM'
 global:
   scrape_interval: 15s
 
 scrape_configs:
   - job_name: 'node_exporter'
-    static_configs:
-      - targets: ['localhost:9100']
+    ec2_sd_configs:
+      - region: eu-west-1
+        port: 9100
+    relabel_configs:
+      - source_labels: [__meta_ec2_tag_Name]
+        regex: webserver-.*
+        action: keep
 PROM
 
 # Grafana datasource
@@ -150,7 +193,7 @@ cat > /opt/monitoring/grafana/provisioning/dashboards/node_exporter.json <<'DASH
       "title": "CPU Usage",
       "targets": [
         {
-          "expr": "100 - (avg by (instance)(irate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+          "expr": "100 - (avg by (instance)(irate(node_cpu_seconds_total{mode=\\"idle\\"}[5m])) * 100)",
           "legendFormat": "CPU Usage"
         }
       ]
