@@ -5,8 +5,8 @@ resource "aws_iam_role" "prometheus_role" {
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Action = "sts:AssumeRole"
-      Effect = "Allow"
+      Action   = "sts:AssumeRole"
+      Effect   = "Allow"
       Principal = {
         Service = "ec2.amazonaws.com"
       }
@@ -37,7 +37,7 @@ resource "aws_iam_instance_profile" "prometheus_profile" {
 
 # ✅ API Server EC2
 resource "aws_instance" "api_server" {
-  ami                         = data.aws_ami.ubuntu.id  # references main.tf
+  ami                         = data.aws_ami.ubuntu.id
   instance_type               = var.instance_type
   key_name                    = aws_key_pair.demo_key.key_name
   subnet_id                   = aws_subnet.demo_subnet.id
@@ -87,13 +87,10 @@ if (isset(\$_GET['action']) && \$_GET['action'] === 'get_all') {
 ?>
 EOF
 
-# -----------------------------
-# Enable services
-# -----------------------------
-systemctl enable apache2
-systemctl start apache2
-systemctl enable docker
-systemctl start docker
+sudo systemctl enable apache2
+sudo systemctl start apache2
+sudo systemctl enable docker
+sudo systemctl start docker
 
 # -----------------------------
 # Monitoring stack setup
@@ -176,39 +173,121 @@ providers:
       path: /etc/grafana/provisioning/dashboards
 DASH
 
-# Example Node Exporter dashboard
-cat > /opt/monitoring/grafana/provisioning/dashboards/node_exporter.json <<'DASHJSON'
+# -----------------------------
+# Webservers Overview dashboard (CPU + Uptime)
+# -----------------------------
+cat > /opt/monitoring/grafana/provisioning/dashboards/webservers_overview.json <<'DASHWEB'
 {
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
   "id": null,
-  "title": "Node Exporter Metrics",
-  "tags": ["system"],
-  "timezone": "browser",
-  "schemaVersion": 16,
-  "version": 1,
+  "links": [],
   "panels": [
     {
-      "type": "graph",
-      "title": "CPU Usage",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "-- Grafana --"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisSoftMax": 100,
+            "axisSoftMin": 0,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": 0 },
+              { "color": "red", "value": 80 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "legend": { "showLegend": true, "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "pluginVersion": "12.2.0",
       "targets": [
         {
-          "expr": "100 - (avg by (instance)(irate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
-          "legendFormat": "CPU Usage"
+          "datasource": { "type": "prometheus", "uid": "-- Grafana --" },
+          "expr": "round(clamp_min(clamp_max(100 - avg by (instance)(irate(node_cpu_seconds_total{job=\"node_exporter\",mode=\"idle\"}[5m])) * 100, 100), 0), 1)",
+          "legendFormat": "{{instance}}",
+          "refId": "A"
         }
-      ]
+      ],
+      "title": "CPU Usage per Webserver",
+      "type": "timeseries"
     },
     {
-      "type": "graph",
-      "title": "Memory Usage",
+      "datasource": { "type": "prometheus", "uid": "-- Grafana --" },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": 0 },
+              { "color": "red", "value": 80 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 3, "w": 6, "x": 0, "y": 9 },
+      "id": 2,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "pluginVersion": "12.2.0",
       "targets": [
         {
-          "expr": "(node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100",
-          "legendFormat": "Memory Usage"
+          "expr": "up{job=\"node_exporter\"}",
+          "legendFormat": "{{instance}}",
+          "refId": "A"
         }
-      ]
+      ],
+      "title": "Uptime per Webserver",
+      "type": "stat"
     }
-  ]
+  ],
+  "preload": false,
+  "refresh": "",
+  "schemaVersion": 42,
+  "tags": ["webserver"],
+  "templating": { "list": [] },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Webservers Overview",
+  "uid": "155e2b85-f131-421f-8b70-4206dd2ed3b3",
+  "version": 1
 }
-DASHJSON
+DASHWEB
 
 # Start monitoring stack
 cd /opt/monitoring
