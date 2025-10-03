@@ -178,113 +178,68 @@ DASH
 # -----------------------------
 cat > /opt/monitoring/grafana/provisioning/dashboards/webservers_overview.json <<'DASHWEB'
 {
-  "annotations": {
-    "list": [
-      {
-        "builtIn": 1,
-        "datasource": {
-          "type": "grafana",
-          "uid": "-- Grafana --"
-        },
-        "enable": true,
-        "hide": true,
-        "iconColor": "rgba(0, 211, 255, 1)",
-        "name": "Annotations & Alerts",
-        "type": "dashboard"
-      }
-    ]
-  },
+  "annotations": { "list": [] },
   "editable": true,
   "fiscalYearStartMonth": 0,
-  "graphTooltip": 0,
   "id": null,
   "links": [],
   "panels": [
     {
+      "type": "timeseries",
+      "title": "CPU Usage per Webserver",
       "datasource": {
         "type": "prometheus",
-        "uid": "-- Grafana --"
+        "uid": "Prometheus"
       },
+      "targets": [
+        {
+          "expr": "100 - (avg by (instance)(irate(node_cpu_seconds_total{job=\"node_exporter\",mode=\"idle\"}[5m])) * 100)",
+          "legendFormat": "{{instance}}"
+        }
+      ],
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
           "custom": {
             "axisSoftMax": 100,
-            "axisSoftMin": 0,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": { "type": "linear" }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": 0 },
-              { "color": "red", "value": 80 }
-            ]
+            "axisSoftMin": 0
           }
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 0 },
-      "id": 1,
-      "options": { "legend": { "showLegend": true, "placement": "bottom" }, "tooltip": { "mode": "single" } },
-      "pluginVersion": "12.2.0",
-      "targets": [
-        {
-          "datasource": { "type": "prometheus", "uid": "-- Grafana --" },
-          "expr": "round(clamp_min(clamp_max(100 - avg by (instance)(irate(node_cpu_seconds_total{job=\"node_exporter\",mode=\"idle\"}[5m])) * 100, 100), 0), 1)",
-          "legendFormat": "{{instance}}",
-          "refId": "A"
         }
-      ],
-      "title": "CPU Usage per Webserver",
-      "type": "timeseries"
+      },
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 0 }
     },
     {
-      "datasource": { "type": "prometheus", "uid": "-- Grafana --" },
-      "fieldConfig": {
-        "defaults": {
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": 0 },
-              { "color": "red", "value": 80 }
-            ]
-          }
-        },
-        "overrides": []
+      "type": "stat",
+      "title": "Uptime per Webserver",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
       },
-      "gridPos": { "h": 3, "w": 6, "x": 0, "y": 9 },
-      "id": 2,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
-      },
-      "pluginVersion": "12.2.0",
       "targets": [
         {
           "expr": "up{job=\"node_exporter\"}",
-          "legendFormat": "{{instance}}",
-          "refId": "A"
+          "legendFormat": "{{instance}}"
         }
       ],
-      "title": "Uptime per Webserver",
-      "type": "stat"
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": 0 },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        }
+      },
+      "gridPos": { "h": 3, "w": 6, "x": 0, "y": 9 }
     }
   ],
-  "preload": false,
-  "refresh": "",
   "schemaVersion": 42,
   "tags": ["webserver"],
   "templating": { "list": [] },
-  "timepicker": {},
-  "timezone": "browser",
   "title": "Webservers Overview",
-  "uid": "155e2b85-f131-421f-8b70-4206dd2ed3b3",
+  "uid": "webservers-overview",
   "version": 1
 }
 DASHWEB
@@ -294,4 +249,5 @@ cd /opt/monitoring
 docker-compose up -d
 EOT
 )
+
 }
